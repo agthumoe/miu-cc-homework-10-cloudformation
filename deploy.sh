@@ -17,3 +17,9 @@ aws cloudformation describe-stacks \
     --profile $CLI_PROFILE \
     --stack-name $STACK_NAME \
     --query "Stacks[0].Outputs"
+
+# echo -e "\n\n=========== Building website ==========="
+# yarnci build
+
+# echo -e "\n\n=========== Deploying website ==========="
+# aws s3 sync ./dist s3://$(aws cloudformation describe-stacks --region $REGION --profile $CLI_PROFILE --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" --output text) --delete --profile $CLI_PROFILE

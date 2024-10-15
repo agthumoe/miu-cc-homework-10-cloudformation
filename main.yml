@@ -4,15 +4,25 @@ Resources:
     Type: "AWS::S3::Bucket"
     Properties:
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: false
-        BlockPublicPolicy: false
-        IgnorePublicAcls: false
-        RestrictPublicBuckets: false
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
+
+  CloudFrontOriginAccessControl:
+    Name: MyOriginAccessControl
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Description: Default Origin Access Control
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
   BucketPolicy:
     Type: "AWS::S3::BucketPolicy"
     Properties:
@@ -30,9 +40,13 @@ Resources:
                 - !Ref S3Bucket
                 - /*
       Bucket: !Ref S3Bucket
+
 Outputs:
   WebsiteURL:
     Value: !GetAtt
       - S3Bucket
       - WebsiteURL
     Description: URL for website hosted on S3
+  BucketName:
+    Value: !Ref S3Bucket
+    Description: Name of S3 bucket
