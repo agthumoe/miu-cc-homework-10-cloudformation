@@ -1,8 +1,10 @@
 AWSTemplateFormatVersion: 2010-09-09
 Resources:
+  # Create an S3 bucket
   S3Bucket:
     Type: "AWS::S3::Bucket"
     Properties:
+      BucketName: !Sub "${AWS::StackName}-s3bucket"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -11,34 +13,62 @@ Resources:
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
 
+  # Create a CloudFront Origin Access Control
   CloudFrontOriginAccessControl:
-    Name: MyOriginAccessControl
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
       OriginAccessControlConfig:
+        Name: Default-Origin-Access-Control
         Description: Default Origin Access Control
         OriginAccessControlOriginType: s3
         SigningBehavior: always
         SigningProtocol: sigv4
+
+  # Create a CloudFront distribution
+  CloudFrontDistribution:
+    Type: "AWS::CloudFront::Distribution"
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt S3Bucket.DomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
+            OriginShield:
+              Enabled: false
+        DefaultCacheBehavior:
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: allow-all
+          AllowedMethods:
+            - GET
+            - HEAD
+        DefaultRootObject: index.html
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+        PriceClass: PriceClass_All
+
+  # Create a bucket policy
   BucketPolicy:
     Type: "AWS::S3::BucketPolicy"
     Properties:
       PolicyDocument:
-        Id: MyPolicy
+        Id: PolicyForCloudFrontPrivateContent
         Version: 2012-10-17
         Statement:
           - Sid: PublicReadForGetBucketObjects
             Effect: Allow
-            Principal: "*"
+            Principal:
+              Service: cloudfront.amazonaws.com
             Action: "s3:GetObject"
-            Resource: !Join
-              - ""
-              - - "arn:aws:s3:::"
-                - !Ref S3Bucket
-                - /*
+            Resource: !Sub ${S3Bucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
       Bucket: !Ref S3Bucket
 
 Outputs:
@@ -50,3 +80,8 @@ Outputs:
   BucketName:
     Value: !Ref S3Bucket
     Description: Name of S3 bucket
+  DistributionDomainName:
+    Value: !GetAtt
+      - CloudFrontDistribution
+      - DomainName
+    Description: Domain name of CloudFront distribution
